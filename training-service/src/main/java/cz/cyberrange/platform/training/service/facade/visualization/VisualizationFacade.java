@@ -549,10 +549,13 @@ public class VisualizationFacade {
           elasticsearchApiService.getAggregatedEventsByLevelsAndTrainingRuns(
               trainingInstance.getId());
       for (AbstractLevel level : levels) {
-        trainingData
-            .events
-            .computeIfAbsent(level.getId(), value -> new HashMap<>())
-            .putAll(instanceEvents.get(level.getId()));
+        Map<Long, List<AbstractAuditPOJO>> levelEvents = instanceEvents.get(level.getId());
+        if (levelEvents != null) {
+          trainingData
+              .events
+              .computeIfAbsent(level.getId(), value -> new HashMap<>())
+              .putAll(levelEvents);
+        }
       }
 
       trainingData.participantsByTrainingRuns.putAll(
@@ -1054,7 +1057,8 @@ public class VisualizationFacade {
     return trainingInstanceData;
   }
 
-  private Map<Long, UserRefDTO> getUserRefDTOsFromInstanceEvents(
+  private Map<Long, UserRefDTO>
+  getUserRefDTOsFromInstanceEvents(
       Long trainingInstanceId,
       Map<Long, Map<Long, List<AbstractAuditPOJO>>> trainingInstanceEvents,
       Function<Map<Long, Map<Long, List<AbstractAuditPOJO>>>, Set<Long>>
@@ -1113,7 +1117,7 @@ public class VisualizationFacade {
     for (AbstractLevel abstractLevel : levels) {
       List<AbstractAuditPOJO> levelEvents = userEvents.getValue().get(abstractLevel.getId());
       if (levelEvents == null) {
-        break;
+        continue;
       }
       ProcessedEventsData processedEventsData =
           getProcessedEventsData(abstractLevel.getOrder(), levelEvents);
