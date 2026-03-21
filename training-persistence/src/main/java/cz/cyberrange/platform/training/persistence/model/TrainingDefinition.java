@@ -68,6 +68,16 @@ public class TrainingDefinition extends AbstractEntity<Long> {
     @Column(name = "outcomes", nullable = true)
     private String[] outcomes;
     @Column(name = "state", length = 128, nullable = false)
+
+    @Column(name = "enable_dynamic_flag", nullable = false)
+    private boolean enableDynamicFlag = false;
+
+    @Column(name = "flag_change_interval")
+    private Integer flagChangeInterval;  // minutes
+
+    @Column(name = "initial_secret")
+    private String initialSecret;
+
     @Enumerated(EnumType.STRING)
     private TDState state;
     @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
@@ -325,9 +335,57 @@ public class TrainingDefinition extends AbstractEntity<Long> {
         this.createdAt = createdAt;
     }
 
+    /**
+     * Gets whether dynamic flag is enabled for this Training Definition
+     * @return true if dynamic flag is enabled, false otherwise
+     */
+    public boolean isEnableDynamicFlag() {
+        return enableDynamicFlag;
+    }
+
+    /**
+     * Sets whether dynamic flag is enabled for this Training Definition
+     * @param enableDynamicFlag true to enable dynamic flag, false to disable
+     */
+    public void setEnableDynamicFlag(boolean enableDynamicFlag) {
+        this.enableDynamicFlag = enableDynamicFlag;
+    }
+
+    /**
+     * Gets the interval in minutes for flag changes
+     * @return the flag change interval in minutes
+     */
+    public Integer getFlagChangeInterval() {
+        return flagChangeInterval;
+    }
+
+    /**
+     * Sets the interval in minutes for flag changes
+     * @param flagChangeInterval the flag change interval in minutes
+     */
+    public void setFlagChangeInterval(Integer flagChangeInterval) {
+        this.flagChangeInterval = flagChangeInterval;
+    }
+
+    /**
+     * Gets the initial secret used for generating dynamic flags
+     * @return the initial secret
+     */
+    public String getInitialSecret() {
+        return initialSecret;
+    }
+
+    /**
+     * Sets the initial secret used for generating dynamic flags
+     * @param initialSecret the initial secret
+     */
+    public void setInitialSecret(String initialSecret) {
+        this.initialSecret = initialSecret;
+    }
+
     @Override
     public int hashCode() {
-        return Objects.hash(description, outcomes, prerequisites, state, title);
+        return Objects.hash(description, outcomes, prerequisites, state, title, enableDynamicFlag, flagChangeInterval, initialSecret);
     }
 
     @Override
@@ -343,7 +401,10 @@ public class TrainingDefinition extends AbstractEntity<Long> {
                 && Arrays.equals(outcomes, other.getOutcomes())
                 && Arrays.equals(prerequisites, other.getPrerequisites())
                 && Objects.equals(state, other.getState())
-                && Objects.equals(title, other.getTitle());
+                && Objects.equals(title, other.getTitle())
+                && enableDynamicFlag == other.isEnableDynamicFlag()
+                && Objects.equals(flagChangeInterval, other.getFlagChangeInterval())
+                && Objects.equals(initialSecret, other.getInitialSecret());
     }
 
     @Override
@@ -355,6 +416,9 @@ public class TrainingDefinition extends AbstractEntity<Long> {
                 ", prerequisites=" + Arrays.toString(prerequisites) +
                 ", outcomes=" + Arrays.toString(outcomes) +
                 ", state=" + state +
+                ", enableDynamicFlag=" + enableDynamicFlag +
+                ", flagChangeInterval=" + flagChangeInterval +
+                ", initialSecret='" + initialSecret + '\'' +
                 ", estimatedDuration=" + estimatedDuration +
                 ", lastEdited=" + lastEdited +
                 ", createdAt=" + createdAt +

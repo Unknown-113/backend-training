@@ -28,9 +28,7 @@ import cz.cyberrange.platform.training.persistence.repository.TrainingInstanceRe
 import cz.cyberrange.platform.training.persistence.repository.TrainingRunRepository;
 import cz.cyberrange.platform.training.persistence.repository.UserRefRepository;
 import cz.cyberrange.platform.training.service.annotations.transactions.TransactionalWO;
-import cz.cyberrange.platform.training.service.services.api.AnswersStorageApiService;
-import cz.cyberrange.platform.training.service.services.api.ElasticsearchApiService;
-import cz.cyberrange.platform.training.service.services.api.SandboxApiService;
+import cz.cyberrange.platform.training.service.services.DynamicFlagService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +72,7 @@ public class TrainingRunService {
     private final QuestionAnswerRepository questionAnswerRepository;
     private final SandboxApiService sandboxApiService;
     private final SubmissionRepository submissionRepository;
+    private final DynamicFlagService dynamicFlagService;
 
     /**
      * Instantiates a new Training run service.
@@ -87,6 +86,7 @@ public class TrainingRunService {
      * @param securityService             the security service
      * @param sandboxApiService           the python rest template
      * @param trAcquisitionLockRepository the tr acquisition lock repository
+     * @param dynamicFlagService          the dynamic flag service
      */
     @Autowired
     public TrainingRunService(TrainingRunRepository trainingRunRepository,
@@ -101,7 +101,8 @@ public class TrainingRunService {
                               QuestionAnswerRepository questionAnswerRepository,
                               SandboxApiService sandboxApiService,
                               TRAcquisitionLockRepository trAcquisitionLockRepository,
-                              SubmissionRepository submissionRepository) {
+                              SubmissionRepository submissionRepository,
+                              DynamicFlagService dynamicFlagService) {
         this.trainingRunRepository = trainingRunRepository;
         this.abstractLevelRepository = abstractLevelRepository;
         this.trainingInstanceRepository = trainingInstanceRepository;
@@ -115,6 +116,7 @@ public class TrainingRunService {
         this.sandboxApiService = sandboxApiService;
         this.trAcquisitionLockRepository = trAcquisitionLockRepository;
         this.submissionRepository = submissionRepository;
+        this.dynamicFlagService = dynamicFlagService;
     }
 
     /**
@@ -596,6 +598,10 @@ public class TrainingRunService {
      * @return static or variant answer based on the Training Run parameters
      */
     public String getTrainingLevelCorrectAnswer(TrainingLevel trainingLevel, TrainingRun trainingRun) {
+        TrainingDefinition definition = trainingRun.getTrainingInstance().getTrainingDefinition();
+        if (definition.isEnableDynamicFlag()) {
+            return dynamicFlagService.generateFlag(definition.getInitialSecret(), definition.getFlagChangeInterval());
+        }
         if (trainingLevel.isVariantAnswers()) {
             return trainingRun.getTrainingInstance().isLocalEnvironment() ?
                     answersStorageApiService.getCorrectAnswerByLocalSandboxIdAndVariableName(trainingRun.getTrainingInstance().getAccessToken(),

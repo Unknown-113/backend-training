@@ -39,4 +39,10 @@ public class TrainingDefinitionCreateDTO {
     private BetaTestingGroupCreateDTO betaTestingGroup;
     @ApiModelProperty(value = "Sign if default levels should be created.", example = "false")
     private boolean defaultContent;
+    @ApiModelProperty(value = "Enable dynamic flag for training definition.", example = "false")
+    private boolean enableDynamicFlag = false;
+    @ApiModelProperty(value = "Interval in minutes for flag changes.", example = "5")
+    private Integer flagChangeInterval;
+    @ApiModelProperty(value = "Initial secret for generating dynamic flags.", example = "secret123")
+    private String initialSecret;
 }

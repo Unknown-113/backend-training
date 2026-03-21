@@ -43,4 +43,10 @@ public class TrainingDefinitionUpdateDTO {
     @ApiModelProperty(value = "Sign if stepper bar should be displayed.", required = true, example = "false")
     @NotNull(message = "{trainingDefinition.showStepperBar.NotNull.message}")
     private boolean showStepperBar;
+    @ApiModelProperty(value = "Enable dynamic flag for training definition.", example = "false")
+    private boolean enableDynamicFlag = false;
+    @ApiModelProperty(value = "Interval in minutes for flag changes.", example = "5")
+    private Integer flagChangeInterval;
+    @ApiModelProperty(value = "Initial secret for generating dynamic flags.", example = "secret123")
+    private String initialSecret;
 }

@@ -49,4 +49,9 @@ public class TrainingDefinitionDTO {
     @ApiModelProperty(value = "Time of creation of definition.", example = "2017-10-19 10:23:54+02")
     @JsonSerialize(using = LocalDateTimeUTCSerializer.class)
     private LocalDateTime createdAt;
-}
+    @ApiModelProperty(value = "Enable dynamic flag for training definition.", example = "false")
+    private boolean enableDynamicFlag = false;
+    @ApiModelProperty(value = "Interval in minutes for flag changes.", example = "5")
+    private Integer flagChangeInterval;
+    @ApiModelProperty(value = "Initial secret for generating dynamic flags.", example = "secret123")
+    private String initialSecret;
