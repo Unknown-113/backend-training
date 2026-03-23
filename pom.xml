@@ -6,7 +6,7 @@
     <artifactId>training</artifactId>
     <name>CyberRangeCZ Platform Training</name>
     <description>Backend for linear trainings</description>
-    <version>${app-version}</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <url>https://github.com/cyberrangecz/backend-training</url>
@@ -38,6 +38,7 @@
     </parent>
 
     <properties>
+        <app-version>1.0.0</app-version>
         <java.version>17</java.version>
         <proprietary-repo-id>github</proprietary-repo-id>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

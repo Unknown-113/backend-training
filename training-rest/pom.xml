@@ -5,7 +5,7 @@
     <parent>
         <groupId>cz.cybersecurityhub.maven</groupId>
         <artifactId>training</artifactId>
-        <version>${app-version}</version>
+        <version>1.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>training-rest</artifactId>
@@ -31,6 +31,13 @@
             <groupId>cz.cybersecurityhub.maven</groupId>
             <artifactId>training-persistence</artifactId>
             <version>${app-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>cz.cybersecurityhub.maven</groupId>
+            <artifactId>training-persistence</artifactId>
+            <version>${app-version}</version>
+            <scope>test</scope>
+            <classifier>tests</classifier>
         </dependency>
         <!--SPRING BOOT STARTERS-->
         <dependency>
@@ -116,6 +123,16 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>cz.cyberrange.platform.training.rest.config.SpringBootRun</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>com.github.kongchen</groupId>

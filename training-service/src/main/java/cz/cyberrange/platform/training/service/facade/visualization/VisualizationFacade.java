@@ -1057,8 +1057,7 @@ public class VisualizationFacade {
     return trainingInstanceData;
   }
 
-  private Map<Long, UserRefDTO>
-  getUserRefDTOsFromInstanceEvents(
+  private Map<Long, UserRefDTO> getUserRefDTOsFromInstanceEvents(
       Long trainingInstanceId,
       Map<Long, Map<Long, List<AbstractAuditPOJO>>> trainingInstanceEvents,
       Function<Map<Long, Map<Long, List<AbstractAuditPOJO>>>, Set<Long>>
