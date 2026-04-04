@@ -8,6 +8,7 @@ import com.querydsl.core.types.dsl.PathBuilder;
 import cz.cyberrange.platform.training.api.dto.CorrectAnswerDTO;
 import cz.cyberrange.platform.training.api.dto.IsCorrectAnswerDTO;
 import cz.cyberrange.platform.training.api.dto.UserRefDTO;
+import cz.cyberrange.platform.training.api.exceptions.ForbiddenException;
 import cz.cyberrange.platform.training.api.responses.SandboxAnswersInfo;
 import cz.cyberrange.platform.training.api.responses.VariantAnswer;
 import cz.cyberrange.platform.training.persistence.model.AbstractLevel;
@@ -20,6 +21,7 @@ import cz.cyberrange.platform.training.persistence.model.TrainingLevel;
 import cz.cyberrange.platform.training.persistence.model.TrainingRun;
 import cz.cyberrange.platform.training.persistence.model.UserRef;
 import cz.cyberrange.platform.training.persistence.util.TestDataFactory;
+import cz.cyberrange.platform.training.service.enums.RoleTypeSecurity;
 import cz.cyberrange.platform.training.service.mapping.mapstruct.*;
 import cz.cyberrange.platform.training.service.services.SecurityService;
 import cz.cyberrange.platform.training.service.services.TrainingDefinitionService;
@@ -184,10 +186,14 @@ public class TrainingRunFacadeTest {
     given(trainingRunService.getTrainingInstanceForParticularAccessToken(anyString()))
         .willReturn(trainingInstance);
     given(securityService.getUserRefIdFromUserAndGroup()).willReturn(1L);
+    given(securityService.hasRole(RoleTypeSecurity.ROLE_TRAINING_ADMINISTRATOR)).willReturn(false);
     given(trainingRunService.findRunningTrainingRunOfUser(anyString(), anyLong()))
         .willReturn(Optional.empty());
     given(trainingRunService.createTrainingRun(trainingInstance, 1L)).willReturn(trainingRun1);
     trainingRunFacade.accessTrainingRun("password");
+    then(trainingRunService)
+        .should()
+        .recordTrainingDefinitionAccessAttempt(1L, trainingDefinition.getId(), 10);
     then(trainingRunService)
         .should()
         .trAcquisitionLockToPreventManyRequestsFromSameUser(
@@ -200,11 +206,45 @@ public class TrainingRunFacadeTest {
     given(trainingRunService.getTrainingInstanceForParticularAccessToken(anyString()))
         .willReturn(trainingInstance);
     given(securityService.getUserRefIdFromUserAndGroup()).willReturn(1L);
+    given(securityService.hasRole(RoleTypeSecurity.ROLE_TRAINING_ADMINISTRATOR)).willReturn(false);
     given(trainingRunService.findRunningTrainingRunOfUser(anyString(), anyLong()))
         .willReturn(Optional.of(trainingRun1));
     given(trainingRunService.resumeTrainingRun(anyLong())).willReturn(trainingRun1);
     trainingRunFacade.accessTrainingRun("password");
     then(trainingRunService).should().resumeTrainingRun(anyLong());
+  }
+
+  @Test
+  public void accessTrainingRunBannedParticipant() {
+    given(trainingRunService.getTrainingInstanceForParticularAccessToken(anyString()))
+        .willReturn(trainingInstance);
+    given(securityService.getUserRefIdFromUserAndGroup()).willReturn(1L);
+    given(securityService.hasRole(RoleTypeSecurity.ROLE_TRAINING_ADMINISTRATOR)).willReturn(false);
+    willThrow(new ForbiddenException("banned"))
+        .given(trainingRunService)
+        .recordTrainingDefinitionAccessAttempt(1L, trainingDefinition.getId(), 10);
+
+    assertThrows(ForbiddenException.class, () -> trainingRunFacade.accessTrainingRun("password"));
+
+    then(trainingRunService).should(never()).findRunningTrainingRunOfUser(anyString(), anyLong());
+    then(trainingRunService).should(never()).createTrainingRun(any(), anyLong());
+  }
+
+  @Test
+  public void accessTrainingRunDoesNotLimitAdministrator() {
+    given(trainingRunService.getTrainingInstanceForParticularAccessToken(anyString()))
+        .willReturn(trainingInstance);
+    given(securityService.getUserRefIdFromUserAndGroup()).willReturn(1L);
+    given(securityService.hasRole(RoleTypeSecurity.ROLE_TRAINING_ADMINISTRATOR)).willReturn(true);
+    given(trainingRunService.findRunningTrainingRunOfUser(anyString(), anyLong()))
+        .willReturn(Optional.empty());
+    given(trainingRunService.createTrainingRun(trainingInstance, 1L)).willReturn(trainingRun1);
+
+    trainingRunFacade.accessTrainingRun("password");
+
+    then(trainingRunService)
+        .should(never())
+        .recordTrainingDefinitionAccessAttempt(anyLong(), anyLong(), anyInt());
   }
 
   @Test
@@ -276,6 +316,12 @@ public class TrainingRunFacadeTest {
             List.of(trainingLevel, infoLevel, assessmentLevel, trainingLevelVariantAnswer));
     given(trainingRunService.findByIdWithLevel(trainingRun1.getId())).willReturn(trainingRun1);
     given(trainingRunService.getLevels(trainingDefinition.getId())).willReturn(levels);
+    given(trainingRunService.getTrainingLevelCorrectAnswer(trainingLevel, trainingRun1))
+        .willReturn(trainingLevel.getAnswer());
+    given(
+            trainingRunService.getTrainingLevelCorrectAnswer(
+                trainingLevelVariantAnswer, trainingRun1))
+        .willReturn(variantAnswer.getAnswerContent());
     given(answersStorageApiService.getAnswersBySandboxId(trainingRun1.getSandboxInstanceRefId()))
         .willReturn(sandboxAnswersInfo);
     List<CorrectAnswerDTO> correctAnswers =

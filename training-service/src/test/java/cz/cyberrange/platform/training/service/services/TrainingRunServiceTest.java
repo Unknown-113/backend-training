@@ -24,6 +24,7 @@ import cz.cyberrange.platform.training.persistence.repository.HintRepository;
 import cz.cyberrange.platform.training.persistence.repository.QuestionAnswerRepository;
 import cz.cyberrange.platform.training.persistence.repository.SubmissionRepository;
 import cz.cyberrange.platform.training.persistence.repository.TRAcquisitionLockRepository;
+import cz.cyberrange.platform.training.persistence.repository.TrainingAccessRestrictionRepository;
 import cz.cyberrange.platform.training.persistence.repository.TrainingInstanceRepository;
 import cz.cyberrange.platform.training.persistence.repository.TrainingRunRepository;
 import cz.cyberrange.platform.training.persistence.repository.UserRefRepository;
@@ -79,6 +80,7 @@ public class TrainingRunServiceTest {
   @MockBean private SecurityService securityService;
   @MockBean private AnswersStorageApiService answersStorageApiService;
   @MockBean private DynamicFlagService dynamicFlagService;
+  @MockBean private TrainingAccessRestrictionRepository trainingAccessRestrictionRepository;
 
   private TrainingRun trainingRun1, trainingRun2;
   private TrainingLevel trainingLevel, trainingLevel2;
@@ -108,7 +110,8 @@ public class TrainingRunServiceTest {
             sandboxApiService,
             trAcquisitionLockRepository,
             submissionRepository,
-            dynamicFlagService);
+            dynamicFlagService,
+            trainingAccessRestrictionRepository);
 
     trainingDefinition = testDataFactory.getReleasedDefinition();
     trainingDefinition.setId(1L);
@@ -546,6 +549,58 @@ public class TrainingRunServiceTest {
         .should()
         .deleteByParticipantRefIdAndTrainingInstanceId(
             participantRef.getId(), trainingInstance1.getId());
+  }
+
+  @Test
+  public void recordTrainingDefinitionAccessAttempt() {
+    TrainingAccessRestriction restriction =
+        new TrainingAccessRestriction(
+            participantRef.getUserRefId(),
+            trainingDefinition.getId(),
+            0,
+            false,
+            LocalDateTime.now(Clock.systemUTC()),
+            null);
+    given(
+            trainingAccessRestrictionRepository
+                .findByParticipantRefIdAndTrainingDefinitionIdForUpdate(
+                    participantRef.getUserRefId(), trainingDefinition.getId()))
+        .willReturn(Optional.of(restriction));
+
+    trainingRunService.recordTrainingDefinitionAccessAttempt(
+        participantRef.getUserRefId(), trainingDefinition.getId(), 10);
+
+    assertEquals(1, restriction.getAccessCount());
+    assertFalse(restriction.isBanned());
+    then(trainingAccessRestrictionRepository).should().saveAndFlush(restriction);
+  }
+
+  @Test
+  public void recordTrainingDefinitionAccessAttemptAndBanUser() {
+    TrainingAccessRestriction restriction =
+        new TrainingAccessRestriction(
+            participantRef.getUserRefId(),
+            trainingDefinition.getId(),
+            10,
+            false,
+            LocalDateTime.now(Clock.systemUTC()),
+            null);
+    given(
+            trainingAccessRestrictionRepository
+                .findByParticipantRefIdAndTrainingDefinitionIdForUpdate(
+                    participantRef.getUserRefId(), trainingDefinition.getId()))
+        .willReturn(Optional.of(restriction));
+
+    assertThrows(
+        ForbiddenException.class,
+        () ->
+            trainingRunService.recordTrainingDefinitionAccessAttempt(
+                participantRef.getUserRefId(), trainingDefinition.getId(), 10));
+
+    assertEquals(11, restriction.getAccessCount());
+    assertTrue(restriction.isBanned());
+    assertNotNull(restriction.getBannedAt());
+    then(trainingAccessRestrictionRepository).should().saveAndFlush(restriction);
   }
 
   @Test

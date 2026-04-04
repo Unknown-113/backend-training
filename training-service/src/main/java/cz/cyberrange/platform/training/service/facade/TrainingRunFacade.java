@@ -79,6 +79,9 @@ public class TrainingRunFacade {
   private static final Logger LOG = LoggerFactory.getLogger(TrainingRunFacade.class);
   private static final int TIME_TO_PROPAGATE_EVENTS = 5;
 
+  @Value("${training.access.max-attempts-per-definition:10}")
+  private int maxAccessAttemptsPerDefinition = 10;
+
   @Value("${central.syslog.ip:127.0.0.1}")
   private String centralSyslogIp;
 
@@ -277,8 +280,14 @@ public class TrainingRunFacade {
   public AccessTrainingRunDTO accessTrainingRun(String accessToken) {
     TrainingInstance trainingInstance =
         trainingRunService.getTrainingInstanceForParticularAccessToken(accessToken);
-    // checking if the user is not accessing to his existing training run (resume action)
     Long participantRefId = securityService.getUserRefIdFromUserAndGroup();
+    if (!securityService.hasRole(RoleTypeSecurity.ROLE_TRAINING_ADMINISTRATOR)) {
+      trainingRunService.recordTrainingDefinitionAccessAttempt(
+          participantRefId,
+          trainingInstance.getTrainingDefinition().getId(),
+          maxAccessAttemptsPerDefinition);
+    }
+    // checking if the user is not accessing to his existing training run (resume action)
     Optional<TrainingRun> accessedTrainingRun =
         trainingRunService.findRunningTrainingRunOfUser(accessToken, participantRefId);
     if (accessedTrainingRun.isPresent()) {

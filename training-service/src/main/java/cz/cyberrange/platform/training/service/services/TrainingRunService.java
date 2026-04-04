@@ -24,6 +24,7 @@ import cz.cyberrange.platform.training.persistence.repository.HintRepository;
 import cz.cyberrange.platform.training.persistence.repository.QuestionAnswerRepository;
 import cz.cyberrange.platform.training.persistence.repository.SubmissionRepository;
 import cz.cyberrange.platform.training.persistence.repository.TRAcquisitionLockRepository;
+import cz.cyberrange.platform.training.persistence.repository.TrainingAccessRestrictionRepository;
 import cz.cyberrange.platform.training.persistence.repository.TrainingInstanceRepository;
 import cz.cyberrange.platform.training.persistence.repository.TrainingRunRepository;
 import cz.cyberrange.platform.training.persistence.repository.UserRefRepository;
@@ -72,6 +73,7 @@ public class TrainingRunService {
   private final SandboxApiService sandboxApiService;
   private final SubmissionRepository submissionRepository;
   private final DynamicFlagService dynamicFlagService;
+  private final TrainingAccessRestrictionRepository trainingAccessRestrictionRepository;
 
   /**
    * Instantiates a new Training run service.
@@ -102,7 +104,8 @@ public class TrainingRunService {
       SandboxApiService sandboxApiService,
       TRAcquisitionLockRepository trAcquisitionLockRepository,
       SubmissionRepository submissionRepository,
-      DynamicFlagService dynamicFlagService) {
+      DynamicFlagService dynamicFlagService,
+      TrainingAccessRestrictionRepository trainingAccessRestrictionRepository) {
     this.trainingRunRepository = trainingRunRepository;
     this.abstractLevelRepository = abstractLevelRepository;
     this.trainingInstanceRepository = trainingInstanceRepository;
@@ -117,6 +120,7 @@ public class TrainingRunService {
     this.trAcquisitionLockRepository = trAcquisitionLockRepository;
     this.submissionRepository = submissionRepository;
     this.dynamicFlagService = dynamicFlagService;
+    this.trainingAccessRestrictionRepository = trainingAccessRestrictionRepository;
   }
 
   /**
@@ -461,6 +465,65 @@ public class TrainingRunService {
       Long participantRefId, Long trainingInstanceId) {
     trAcquisitionLockRepository.deleteByParticipantRefIdAndTrainingInstanceId(
         participantRefId, trainingInstanceId);
+  }
+
+  /**
+   * Records an access attempt for the participant within a training definition and bans the
+   * participant after exceeding the configured maximum.
+   *
+   * @param participantRefId the participant ref id
+   * @param trainingDefinitionId the training definition id
+   * @param maxAccessAttempts maximum allowed attempts before ban is applied
+   */
+  @TransactionalWO(propagation = Propagation.REQUIRES_NEW)
+  public void recordTrainingDefinitionAccessAttempt(
+      Long participantRefId, Long trainingDefinitionId, int maxAccessAttempts) {
+    LocalDateTime now = LocalDateTime.now(Clock.systemUTC());
+    TrainingAccessRestriction restriction =
+        getOrCreateTrainingAccessRestriction(participantRefId, trainingDefinitionId, now);
+    if (restriction.isBanned()) {
+      throw createTrainingDefinitionBanException(trainingDefinitionId, maxAccessAttempts);
+    }
+    restriction.setAccessCount(restriction.getAccessCount() + 1);
+    restriction.setLastAccessedAt(now);
+    if (restriction.getAccessCount() > maxAccessAttempts) {
+      restriction.setBanned(true);
+      restriction.setBannedAt(now);
+      trainingAccessRestrictionRepository.saveAndFlush(restriction);
+      throw createTrainingDefinitionBanException(trainingDefinitionId, maxAccessAttempts);
+    }
+    trainingAccessRestrictionRepository.saveAndFlush(restriction);
+  }
+
+  private TrainingAccessRestriction getOrCreateTrainingAccessRestriction(
+      Long participantRefId, Long trainingDefinitionId, LocalDateTime now) {
+    return trainingAccessRestrictionRepository
+        .findByParticipantRefIdAndTrainingDefinitionIdForUpdate(
+            participantRefId, trainingDefinitionId)
+        .orElseGet(
+            () -> {
+              TrainingAccessRestriction restriction =
+                  new TrainingAccessRestriction(
+                      participantRefId, trainingDefinitionId, 0, false, now, null);
+              try {
+                return trainingAccessRestrictionRepository.saveAndFlush(restriction);
+              } catch (DataIntegrityViolationException ex) {
+                return trainingAccessRestrictionRepository
+                    .findByParticipantRefIdAndTrainingDefinitionIdForUpdate(
+                        participantRefId, trainingDefinitionId)
+                    .orElseThrow(() -> ex);
+              }
+            });
+  }
+
+  private ForbiddenException createTrainingDefinitionBanException(
+      Long trainingDefinitionId, int maxAccessAttempts) {
+    return new ForbiddenException(
+        "Access to training definition "
+            + trainingDefinitionId
+            + " has been blocked because the maximum number of access attempts ("
+            + maxAccessAttempts
+            + ") was exceeded.");
   }
 
   private AbstractLevel findFirstLevelForTrainingRun(Long trainingDefinitionId) {

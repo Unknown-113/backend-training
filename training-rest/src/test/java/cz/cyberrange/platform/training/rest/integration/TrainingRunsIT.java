@@ -45,7 +45,6 @@ import cz.cyberrange.platform.training.persistence.util.TestDataFactory;
 import cz.cyberrange.platform.training.rest.controllers.TrainingRunsRestController;
 import cz.cyberrange.platform.training.rest.integration.config.DBTestUtil;
 import cz.cyberrange.platform.training.rest.utils.error.ApiEntityError;
-import cz.cyberrange.platform.training.rest.utils.error.ApiError;
 import cz.cyberrange.platform.training.rest.utils.error.CustomRestExceptionHandlerTraining;
 import cz.cyberrange.platform.training.service.mapping.mapstruct.HintMapperImpl;
 import cz.cyberrange.platform.training.service.mapping.mapstruct.LevelMapperImpl;
@@ -123,7 +122,6 @@ public class TrainingRunsIT {
   @Autowired private TrainingRunMapperImpl trainingRunMapper;
   @Autowired private HintMapperImpl hintMapper;
   @Autowired private ElasticsearchApiService elasticsearchApiServiceMock;
-
   @Autowired
   @Qualifier("objMapperRESTApi")
   private ObjectMapper mapper;
