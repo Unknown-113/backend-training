@@ -798,6 +798,30 @@ public class TrainingRunsRestController {
     return ResponseEntity.ok(SquigglyUtils.stringify(objectMapper, levelDTO));
   }
 
+  @ApiOperation(httpMethod = "POST", value = "Generate a deep link URL for terminal-based exam access.", nickname = "generateDeepLink", produces = MediaType.APPLICATION_JSON_VALUE)
+  @ApiResponses(value = {
+      @ApiResponse(code = 200, message = "Deep link URL generated successfully."),
+      @ApiResponse(code = 404, message = "The training run has not been found.", response = ApiError.class)
+  })
+  @PostMapping(path = "/{runId}/deep-link", produces = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<cz.cyberrange.platform.training.api.dto.run.DeepLinkDTO> generateDeepLink(
+      @ApiParam(value = "Training run ID", required = true) @PathVariable("runId") Long runId) {
+    return ResponseEntity.ok(trainingRunFacade.generateDeepLink(runId));
+  }
+
+  @ApiOperation(httpMethod = "GET", value = "Validate terminal session token and redirect to exam web interface.", nickname = "terminalAccess")
+  @ApiResponses(value = {
+      @ApiResponse(code = 200, message = "HTML page that injects JWT and redirects to exam UI."),
+      @ApiResponse(code = 401, message = "Token is invalid, expired, or already used.", response = ApiError.class)
+  })
+  @GetMapping(path = "/{runId}/terminal-access", produces = MediaType.TEXT_HTML_VALUE)
+  public ResponseEntity<String> terminalAccess(
+      @ApiParam(value = "Training run ID", required = true) @PathVariable("runId") Long runId,
+      @ApiParam(value = "One-time session token", required = true) @RequestParam("token") String token) {
+    String html = trainingRunFacade.validateTerminalAccess(runId, token);
+    return ResponseEntity.ok().contentType(org.springframework.http.MediaType.TEXT_HTML).body(html);
+  }
+
   /** The type Training run rest resource. */
   @ApiModel(
       value = "TrainingRunRestResource",

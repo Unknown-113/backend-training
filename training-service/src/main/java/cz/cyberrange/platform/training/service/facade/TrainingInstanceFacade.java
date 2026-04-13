@@ -606,4 +606,14 @@ public class TrainingInstanceFacade {
           "The sandbox definition cannot be set in the training instance if the local environment is disabled.");
     }
   }
+
+  @PreAuthorize(
+      "hasAuthority(T(cz.cyberrange.platform.training.service.enums.RoleTypeSecurity).ROLE_TRAINING_ADMINISTRATOR)"
+          + "or @securityService.isOrganizerOfGivenTrainingInstance(#instanceId)")
+  @TransactionalWO
+  public void updateMaxAccessAttempts(Long instanceId, int maxAccessAttempts) {
+    TrainingInstance trainingInstance = trainingInstanceService.findById(instanceId);
+    trainingInstance.setMaxAccessAttempts(maxAccessAttempts);
+    trainingInstanceService.auditAndSave(trainingInstance);
+  }
 }

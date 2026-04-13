@@ -81,4 +81,7 @@ public class TrainingInstanceUpdateDTO {
           "Indicates if trainee can during training run move to the previous already solved levels.",
       example = "true")
   private boolean backwardMode;
+
+  @ApiModelProperty(value = "Maximum number of access attempts before participant is banned.", example = "10")
+  private int maxAccessAttempts = 10;
 }

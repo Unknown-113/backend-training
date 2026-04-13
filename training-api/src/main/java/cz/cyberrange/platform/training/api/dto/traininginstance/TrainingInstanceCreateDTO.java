@@ -78,6 +78,9 @@ public class TrainingInstanceCreateDTO {
       example = "true")
   private boolean backwardMode;
 
+  @ApiModelProperty(value = "Maximum number of access attempts before participant is banned.", example = "10")
+  private int maxAccessAttempts = 10;
+
   /**
    * Gets start time.
    *

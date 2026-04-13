@@ -125,6 +125,9 @@ public class TrainingInstance extends AbstractEntity<Long> {
   @Column(name = "backward_mode", nullable = false)
   private boolean backwardMode;
 
+  @Column(name = "max_access_attempts", nullable = false)
+  private int maxAccessAttempts = 10;
+
   /**
    * Gets unique identification number of Training instance
    *
@@ -394,6 +397,14 @@ public class TrainingInstance extends AbstractEntity<Long> {
    */
   public void setBackwardMode(boolean backwardMode) {
     this.backwardMode = backwardMode;
+  }
+
+  public int getMaxAccessAttempts() {
+    return maxAccessAttempts;
+  }
+
+  public void setMaxAccessAttempts(int maxAccessAttempts) {
+    this.maxAccessAttempts = maxAccessAttempts;
   }
 
   public boolean running() {

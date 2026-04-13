@@ -592,6 +592,19 @@ public class TrainingInstancesRestController {
     return ResponseEntity.noContent().build();
   }
 
+  @ApiOperation(httpMethod = "PATCH", value = "Update max access attempts of training instance", nickname = "updateMaxAccessAttempts")
+  @ApiResponses(value = {
+      @ApiResponse(code = 200, message = "Max access attempts updated."),
+      @ApiResponse(code = 404, message = "The training instance has not been found.", response = ApiError.class)
+  })
+  @PatchMapping(path = "/{instanceId}/max-access-attempts")
+  public ResponseEntity<Void> updateMaxAccessAttempts(
+      @ApiParam(value = "Training instance ID", required = true) @PathVariable("instanceId") Long instanceId,
+      @ApiParam(value = "New max access attempts value", required = true) @RequestParam("value") int value) {
+    trainingInstanceFacade.updateMaxAccessAttempts(instanceId, value);
+    return ResponseEntity.ok().build();
+  }
+
   @ApiModel(
       value = "TrainingInstanceRestResource",
       description =

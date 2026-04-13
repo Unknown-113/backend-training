@@ -74,6 +74,7 @@ public class TrainingRunService {
   private final SubmissionRepository submissionRepository;
   private final DynamicFlagService dynamicFlagService;
   private final TrainingAccessRestrictionRepository trainingAccessRestrictionRepository;
+  private final cz.cyberrange.platform.training.persistence.repository.TerminalSessionTokenRepository terminalSessionTokenRepository;
 
   /**
    * Instantiates a new Training run service.
@@ -105,7 +106,8 @@ public class TrainingRunService {
       TRAcquisitionLockRepository trAcquisitionLockRepository,
       SubmissionRepository submissionRepository,
       DynamicFlagService dynamicFlagService,
-      TrainingAccessRestrictionRepository trainingAccessRestrictionRepository) {
+      TrainingAccessRestrictionRepository trainingAccessRestrictionRepository,
+      cz.cyberrange.platform.training.persistence.repository.TerminalSessionTokenRepository terminalSessionTokenRepository) {
     this.trainingRunRepository = trainingRunRepository;
     this.abstractLevelRepository = abstractLevelRepository;
     this.trainingInstanceRepository = trainingInstanceRepository;
@@ -121,6 +123,7 @@ public class TrainingRunService {
     this.submissionRepository = submissionRepository;
     this.dynamicFlagService = dynamicFlagService;
     this.trainingAccessRestrictionRepository = trainingAccessRestrictionRepository;
+    this.terminalSessionTokenRepository = terminalSessionTokenRepository;
   }
 
   /**
@@ -1114,5 +1117,34 @@ public class TrainingRunService {
 
   public List<QuestionAnswer> getQuestionAnswersByTrainingRunId(Long runId) {
     return questionAnswerRepository.getAllByTrainingRunId(runId);
+  }
+
+  public cz.cyberrange.platform.training.persistence.model.TerminalSessionToken generateTerminalSessionToken(
+      Long trainingRunId, String jwtToken, String sessionState) {
+    TrainingRun trainingRun = findById(trainingRunId);
+    String instanceAccessToken = trainingRun.getTrainingInstance().getAccessToken();
+    cz.cyberrange.platform.training.persistence.model.TerminalSessionToken sessionToken =
+        new cz.cyberrange.platform.training.persistence.model.TerminalSessionToken();
+    sessionToken.setToken(java.util.UUID.randomUUID().toString());
+    sessionToken.setTrainingRunId(trainingRunId);
+    sessionToken.setCreatedAt(LocalDateTime.now());
+    sessionToken.setExpiresAt(LocalDateTime.now().plusSeconds(600));
+    sessionToken.setUsed(false);
+    sessionToken.setJwtToken(jwtToken);
+    sessionToken.setSessionState(sessionState);
+    sessionToken.setAccessToken(instanceAccessToken);
+    return terminalSessionTokenRepository.save(sessionToken);
+  }
+
+  public cz.cyberrange.platform.training.persistence.model.TerminalSessionToken validateAndConsumeTerminalSessionToken(
+      String token) {
+    cz.cyberrange.platform.training.persistence.model.TerminalSessionToken sessionToken =
+        terminalSessionTokenRepository
+            .findValidByToken(token, LocalDateTime.now())
+            .orElseThrow(() -> new EntityNotFoundException(
+                new EntityErrorDetail("Terminal session token is invalid, expired, or already used.")));
+    sessionToken.setUsed(true);
+    terminalSessionTokenRepository.save(sessionToken);
+    return sessionToken;
   }
 }

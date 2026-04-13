@@ -72,12 +72,21 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+
 /** The type Training run facade. */
 @Service
 public class TrainingRunFacade {
 
   private static final Logger LOG = LoggerFactory.getLogger(TrainingRunFacade.class);
   private static final int TIME_TO_PROPAGATE_EVENTS = 5;
+
+  @Value("${server.base-url:http://localhost:8083}")
+  private String baseUrl;
+
+  @Value("${frontend.url:http://localhost:4200}")
+  private String frontendUrl;
 
   @Value("${training.access.max-attempts-per-definition:10}")
   private int maxAccessAttemptsPerDefinition = 10;
@@ -285,7 +294,7 @@ public class TrainingRunFacade {
       trainingRunService.recordTrainingDefinitionAccessAttempt(
           participantRefId,
           trainingInstance.getTrainingDefinition().getId(),
-          maxAccessAttemptsPerDefinition);
+          trainingInstance.getMaxAccessAttempts());
     }
     // checking if the user is not accessing to his existing training run (resume action)
     Optional<TrainingRun> accessedTrainingRun =
@@ -886,5 +895,52 @@ public class TrainingRunFacade {
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
+  }
+
+  public String getBearerToken() {
+    JwtAuthenticationToken authentication = (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+    return authentication.getToken().getTokenValue();
+  }
+
+  public String getSessionState() {
+    JwtAuthenticationToken authentication = (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+    Object sid = authentication.getToken().getClaims().get("sid");
+    return sid != null ? sid.toString() : "";
+  }
+
+  @PreAuthorize("hasAuthority(T(cz.cyberrange.platform.training.service.enums.RoleTypeSecurity).ROLE_TRAINING_ADMINISTRATOR)"
+      + "or @securityService.isTraineeOfGivenTrainingRun(#trainingRunId)")
+  @TransactionalWO
+  public cz.cyberrange.platform.training.api.dto.run.DeepLinkDTO generateDeepLink(Long trainingRunId) {
+    String jwt = getBearerToken();
+    String sessionState = getSessionState();
+    cz.cyberrange.platform.training.persistence.model.TerminalSessionToken sessionToken =
+        trainingRunService.generateTerminalSessionToken(trainingRunId, jwt, sessionState);
+    String deepLinkUrl = baseUrl + "/training-runs/" + trainingRunId + "/terminal-access?token=" + sessionToken.getToken();
+    return new cz.cyberrange.platform.training.api.dto.run.DeepLinkDTO(deepLinkUrl, trainingRunId, sessionToken.getExpiresAt());
+  }
+
+  @TransactionalWO
+  public String validateTerminalAccess(Long trainingRunId, String token) {
+    cz.cyberrange.platform.training.persistence.model.TerminalSessionToken sessionToken =
+        trainingRunService.validateAndConsumeTerminalSessionToken(token);
+    if (!sessionToken.getTrainingRunId().equals(trainingRunId)) {
+      throw new cz.cyberrange.platform.training.api.exceptions.EntityNotFoundException(
+          new cz.cyberrange.platform.training.api.exceptions.EntityErrorDetail(
+              "Terminal session token does not match the requested training run."));
+    }
+    String targetUrl = frontendUrl + "/run/linear/" + sessionToken.getAccessToken() + "/access";
+    String jwt = sessionToken.getJwtToken();
+    String sessionState = sessionToken.getSessionState() != null ? sessionToken.getSessionState() : "";
+    return "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
+        "<title>Redirecting to exam...</title></head><body>" +
+        "<p>Redirecting to exam, please wait...</p>" +
+        "<script>" +
+        "localStorage.setItem('access_token', '" + jwt + "');" +
+        "localStorage.setItem('access_token_stored_at', Date.now().toString());" +
+        "localStorage.setItem('session_state', '" + sessionState + "');" +
+        "localStorage.setItem('sentinel_auth_provider_id', 'CRCZP-Client');" +
+        "window.location.replace('" + targetUrl + "');" +
+        "</script></body></html>";
   }
 }
